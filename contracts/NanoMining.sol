@@ -8,22 +8,24 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract NanoMining is Ownable, ReentrancyGuard {
     IERC20 public usdtToken; // USDT token contract
     IERC20 public nanoToken; // NANO token contract
+    address public fundWallet;
+    uint256 public roiRate;
+    uint256 public fundRate;
 
     mapping(address => uint256) public balances;
     mapping(address => address) public referrer;
-    mapping(address => uint256) public totalNANOHarvested;
-    mapping(address => uint256) public lastMinedAt; // Track last mined timestamp per miner
 
-    struct MiningLog {
+    enum BalanceType { Deposit, ReferralReward }
+
+    struct BalanceLog {
         uint256 amount;
         uint256 timestamp;
+        BalanceType balanceType;
     }
-    mapping(address => MiningLog[]) public miningLogs;
+    mapping(address => BalanceLog[]) public balanceLogs;
 
     uint256 public constant MIN_WITHDRAWAL = 15000 * 10**18; // Minimum withdrawal in NANO
-    uint256 public constant ROI_RATE = 5; // 5% daily
     uint256 public constant REFERRAL_PERCENTAGE = 10; // 10% referral
-    uint256 public constant DAILY_INTERVAL = 1 days; // 24-hour interval
 
     event TokensPurchased(address indexed buyer, uint256 usdtAmount, uint256 nanoReceived);
     event NANOMined(address indexed user, uint256 amount);
@@ -33,29 +35,47 @@ contract NanoMining is Ownable, ReentrancyGuard {
 
     constructor(address _usdtToken, address _nanoToken) {
         usdtToken = IERC20(_usdtToken);
-        nanoToken = IERC20(_nanoToken);
+        roiRate = 5;
+        fundRate = 40;
     }
 
     // Buy NANO tokens
     function buyTokens(uint256 usdtAmount, address _referrer) external nonReentrant {
         require(usdtAmount > 0, "Amount should be greater than zero");
+        require(_referrer != msg.sender, "Referrer cannot be the buyer");
+
+        // Check if the buyer already has a referrer set and only allow the same one
+        require(
+            referrer[msg.sender] == address(0) || referrer[msg.sender] == _referrer,
+            "Referrer is already set and cannot be changed"
+        );
+
         uint256 nanoToReceive = calculateNanoAmount(usdtAmount);
+        uint256 referralReward = (nanoToReceive * REFERRAL_PERCENTAGE) / 100;
 
-        // Transfer USDT from user to the contract
-        require(usdtToken.transferFrom(msg.sender, address(this), usdtAmount), "USDT transfer failed");
+        // Deduct referral percentage if referrer exists and add balance to buyer
+        uint256 nanoForBuyer = nanoToReceive - referralReward;
+        balances[msg.sender] += nanoForBuyer;
 
-        // Transfer NANO tokens to the user
-        balances[msg.sender] += nanoToReceive;
+        // Log deposit for buyer
+        balanceLogs[msg.sender].push(BalanceLog({
+            amount: nanoForBuyer,
+            timestamp: block.timestamp,
+            balanceType: BalanceType.Deposit
+        }));
 
-        // Handle referral
-        if (_referrer != address(0) && _referrer != msg.sender) {
-            // Check if the user already has a referrer
-            require(referrer[msg.sender] == address(0), "Referrer is already set");
-
-            uint256 referralReward = (usdtAmount * REFERRAL_PERCENTAGE) / 100;
-            usdtToken.transfer(_referrer, referralReward);
+        // Set referrer if it’s the first time setting it
+        if (referrer[msg.sender] == address(0)) {
             referrer[msg.sender] = _referrer;
         }
+
+        // Add referral reward to referrer's balance and log it
+        balances[_referrer] += referralReward;
+        balanceLogs[_referrer].push(BalanceLog({
+            amount: referralReward,
+            timestamp: block.timestamp,
+            balanceType: BalanceType.ReferralReward
+        }));
 
         emit TokensPurchased(msg.sender, usdtAmount, nanoToReceive);
     }
