@@ -41,6 +41,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     event FundWalletUpdate(address indexed fundWalletAddress);
     event FundWalletRateUpdate(uint256 fundRate);
     event ROIUpdate(uint256 roi);
+    event USDTWithdrawn(address indexed admin, address indexed to, uint256 amount);
 
     constructor(address _usdtToken, address _nanoToken) {
         usdtToken = IERC20(_usdtToken);
@@ -74,6 +75,18 @@ contract NanoMining is Ownable, ReentrancyGuard {
         require(_roi > 0, "ROI should be greater than zero");
         roi = _roi; // Update the ROI
         emit ROIUpdate(_roi); // Emit an event for logging
+    }
+
+    // Admin function to withdraw USDT to an external address
+    function withdrawUSDT(address to, uint256 amount) external onlyOwner {
+        require(to != address(0), "Invalid address: cannot be zero");
+        require(amount > 0, "Amount should be greater than zero");
+        require(amount <= usdtToken.balanceOf(address(this)), "Insufficient contract balance");
+
+        // Transfer USDT to the specified address
+        require(usdtToken.transfer(to, amount), "USDT transfer failed");
+
+        emit USDTWithdrawn(msg.sender, to, amount); // Emit event for logging
     }
 
     // Buy NANO
