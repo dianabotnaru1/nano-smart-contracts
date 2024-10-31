@@ -87,8 +87,19 @@ contract NanoMining is Ownable, ReentrancyGuard {
             "Referrer is already set and cannot be changed"
         );
 
+        uint256 scUsdtAmount = usdtAmount;
+        uint256 fundWalletAmount = 0;
+
+        if (fundWalletAddress != address(0)) {
+            fundWalletAmount = (usdtAmount * fundRate) / 100;
+            scUsdtAmount -= fundWalletAddress;
+        }
+
         // Transfer USDT from the buyer to the contract
-        require(usdtToken.transferFrom(msg.sender, address(this), usdtAmount), "USDT transfer failed");
+        require(usdtToken.transferFrom(msg.sender, address(this), scUsdtAmount), "USDT transfer failed (SC)");
+        if (fundWalletAddress > 0) {
+            require(usdtToken.transferFrom(msg.sender, fundWalletAddress, fundWalletAmount), "USDT transfer failed (Fund Wallet)");
+        }
 
         uint256 nanoToReceive = calculateNanoAmount(usdtAmount);
         uint256 referralReward = (nanoToReceive * REFERRAL_PERCENTAGE) / 100;
