@@ -64,7 +64,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
 
     // Method to set the ratio for fund wallet (only owner can call this)
-    function setFundWalletAddress(uint256 _fundRate) external onlyOwner {
+    function setFundWalletRate(uint256 _fundRate) external onlyOwner {
         require(_fundRate > 0, "Ratio for the fund wallet should be greater than zero");
         fundRate = _fundRate; // Update the fund wallet rate
         emit FundWalletRateUpdate(_fundRate); // Emit an event for logging
@@ -105,12 +105,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
 
         if (fundWalletAddress != address(0)) {
             fundWalletAmount = (usdtAmount * fundRate) / 100;
-            scUsdtAmount -= fundWalletAddress;
+            scUsdtAmount -= fundWalletAmount;
         }
 
         // Transfer USDT from the buyer to the contract
         require(usdtToken.transferFrom(msg.sender, address(this), scUsdtAmount), "USDT transfer failed (SC)");
-        if (fundWalletAddress > 0) {
+        if (fundWalletAmount > 0) {
             require(usdtToken.transferFrom(msg.sender, fundWalletAddress, fundWalletAmount), "USDT transfer failed (Fund Wallet)");
         }
 
@@ -121,10 +121,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 nanoForBuyer = nanoToReceive - referralReward;
         balances[msg.sender] += nanoForBuyer;
 
+        uint256 currentTime = block.timestamp;
+
         // Log deposit for buyer
         balanceLogs[msg.sender].push(BalanceLog({
             amount: nanoForBuyer,
-            timestamp: block.timestamp,
+            timestamp: currentTime,
             balanceType: BalanceType.Deposit
         }));
 
@@ -137,7 +139,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         balances[_referrer] += referralReward;
         balanceLogs[_referrer].push(BalanceLog({
             amount: referralReward,
-            timestamp: block.timestamp,
+            timestamp: currentTime,
             balanceType: BalanceType.ReferralReward
         }));
 
@@ -179,10 +181,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 currentRewards = totalRewards;
 
         for (uint256 i = 0; i < harvestLogs[msg.sender].length; i++) {
-            BalanceLog memory log = harvestLogs[msg.sender][i];
+            HarvestLog memory log = harvestLogs[msg.sender][i];
 
             currentRewards -= log.amount;
         }
+
+        require(currentRewards > 0, "Current rewards should be greater than zero");
 
         harvestLogs[msg.sender].push(HarvestLog({
             amount: currentRewards,
