@@ -89,22 +89,6 @@ contract NanoMining is Ownable, ReentrancyGuard {
         return nanoAmount * 100 / 156250; // Adjust as per requirement
     }
 
-    // Mining function to earn NANO
-    function mineNANO(address _miner) external onlyOwner {
-        require(block.timestamp >= lastMinedAt[_miner] + DAILY_INTERVAL, "Mining can only be done once every 24 hours");
-
-        uint256 earnedNANO = (balances[_miner] * ROI_RATE) / 100;
-        totalNANOHarvested[msg.sender] += earnedNANO;
-        lastMinedAt[_miner] = block.timestamp;
-
-        miningLogs[_miner].push(MiningLog({
-            amount: earnedNANO,
-            timestamp: block.timestamp
-        }));
-
-        emit NANOMined(_miner, earnedNANO);
-    }
-
     // Harvest NANO after reaching the minimum threshold
     function harvest() external nonReentrant {
         require(totalNANOHarvested[msg.sender] >= MIN_WITHDRAWAL, "Minimum withdrawal not reached");
