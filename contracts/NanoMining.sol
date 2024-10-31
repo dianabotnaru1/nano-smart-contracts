@@ -14,6 +14,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
     mapping(address => uint256) public totalNANOHarvested;
     mapping(address => uint256) public lastMinedAt; // Track last mined timestamp per miner
 
+    struct MiningLog {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    mapping(address => MiningLog[]) public miningLogs;
+
     uint256 public constant MIN_WITHDRAWAL = 15000 * 10**18; // Minimum withdrawal in NANO
     uint256 public constant ROI_RATE = 5; // 5% daily
     uint256 public constant REFERRAL_PERCENTAGE = 10; // 10% referral
@@ -71,6 +77,11 @@ contract NanoMining is Ownable, ReentrancyGuard {
         totalNANOHarvested[msg.sender] += earnedNANO;
         lastMinedAt[_miner] = block.timestamp;
 
+        miningLogs[_miner].push(MiningLog({
+            amount: earnedNANO,
+            timestamp: block.timestamp
+        }));
+
         emit NANOMined(_miner, earnedNANO);
     }
 
@@ -114,5 +125,10 @@ contract NanoMining is Ownable, ReentrancyGuard {
     // Get the total harvested NANO amount for the miner
     function getTotalHarvestedAmount(address _miner) external view returns (uint256) {
         return totalNANOHarvested[_miner];
+    }
+
+    // Get mining logs for a miner
+    function getMiningLogs(address _miner) external view returns (MiningLog[] memory) {
+        return miningLogs[_miner];
     }
 }
