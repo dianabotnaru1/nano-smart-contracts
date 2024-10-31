@@ -13,6 +13,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     uint256 public fundRate;
 
     mapping(address => uint256) public balances;
+    mapping(address => uint256) public totalHarvestAmount;
     mapping(address => address) public referrer;
 
     enum BalanceType { Deposit, ReferralReward }
@@ -23,6 +24,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
         BalanceType balanceType;
     }
     mapping(address => BalanceLog[]) public balanceLogs;
+
+    struct HarvestLog {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    mapping(address => HarvestLog[]) public harvestLogs;
 
     uint256 public constant MIN_WITHDRAWAL = 15000 * 10**18; // Minimum withdrawal in NANO
     uint256 public constant REFERRAL_PERCENTAGE = 10; // 10% referral
@@ -89,21 +96,51 @@ contract NanoMining is Ownable, ReentrancyGuard {
         return nanoAmount * 100 / 156250; // Adjust as per requirement
     }
 
-    // Harvest NANO after reaching the minimum threshold
+    // Calculate total rewards for the user
+    function calculateRewards(address _user, uint256 currentTime) internal view returns (uint256) {
+        uint256 totalRewards = 0;
+
+        for (uint256 i = 0; i < balanceLogs[_user].length; i++) {
+            BalanceLog memory log = balanceLogs[_user][i];
+
+            // Calculate days elapsed since each log's timestamp
+            uint256 daysElapsed = (currentTime - log.timestamp) / 1 days;
+            uint256 reward = (daysElapsed * roiRate * log.amount) / 100;
+
+            totalRewards += reward;
+        }
+        return totalRewards;
+    }
+
     function harvest() external nonReentrant {
-        require(totalNANOHarvested[msg.sender] >= MIN_WITHDRAWAL, "Minimum withdrawal not reached");
-        uint256 amountToWithdraw = totalNANOHarvested[msg.sender];
-        totalNANOHarvested[msg.sender] = 0;
+        uint256 currentTime = block.timestamp;
 
-        // Transfer NANO to user
-        nanoToken.transfer(msg.sender, amountToWithdraw);
+        // Calculate total rewards for the user
+        uint256 totalRewards = calculateRewards(msg.sender, currentTime);
 
-        emit NANOHarvested(msg.sender, amountToWithdraw);
+        // Calculate current rewards for the user
+        uint256 currentRewards = totalRewards;
+
+        for (uint256 i = 0; i < harvestLogs[msg.sender].length; i++) {
+            BalanceLog memory log = harvestLogs[msg.sender][i];
+
+            currentRewards -= log.amount;
+        }
+
+        harvestLogs[msg.sender].push(HarvestLog({
+            amount: currentRewards,
+            timestamp: block.timestamp
+        }));
+
+        totalHarvestAmount[msg.sender] += currentRewards;
+
+        emit NANOHarvested(msg.sender, currentRewards);
     }
 
     // Swap NANO for USDT with 10% admin fee
     function swapNanoForUSDT(uint256 nanoAmount) external nonReentrant {
         require(nanoAmount > 0, "Amount should be greater than zero");
+        require(nanoAmount <= totalHarvestAmount[msg.sender], "Amount exceeds total harvested amount");
 
         // Calculate USDT equivalent (assuming 15625 NANO = 10 USDT)
         uint256 usdtAmount = calculateUSDTAmount(nanoAmount);
@@ -118,6 +155,9 @@ contract NanoMining is Ownable, ReentrancyGuard {
         // Transfer net USDT to user
         usdtToken.transfer(msg.sender, netAmount);
 
+        // Deduct the swapped amount from total harvested amount
+        totalHarvestAmount[msg.sender] -= nanoAmount;
+
         emit Swapped(msg.sender, nanoAmount, netAmount);
     }
 
@@ -128,11 +168,16 @@ contract NanoMining is Ownable, ReentrancyGuard {
 
     // Get the total harvested NANO amount for the miner
     function getTotalHarvestedAmount(address _miner) external view returns (uint256) {
-        return totalNANOHarvested[_miner];
+        return totalHarvestAmount[_miner];
     }
 
-    // Get mining logs for a miner
-    function getMiningLogs(address _miner) external view returns (MiningLog[] memory) {
-        return miningLogs[_miner];
+    // Get harvest logs for a miner
+    function getHarvestLogs(address _miner) external view returns (HarvestLog[] memory) {
+        return harvestLogs[_miner];
+    }
+
+    // Get balance logs for a miner
+    function getBalanceLogs(address _miner) external view returns (BalanceLog[] memory) {
+        return balanceLogs[_miner];
     }
 }
