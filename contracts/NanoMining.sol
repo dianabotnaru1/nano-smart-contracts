@@ -84,7 +84,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         require(amount <= usdtToken.balanceOf(address(this)), "Insufficient contract balance");
 
         // Transfer USDT to the specified address
-        require(usdtToken.transfer(to, amount), "USDT transfer failed");
+        usdtToken.transfer(to, amount);
 
         emit USDTWithdrawn(msg.sender, to, amount); // Emit event for logging
     }
@@ -95,10 +95,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         require(_referrer != msg.sender, "Referrer cannot be the buyer");
 
         // Check if the buyer already has a referrer set and only allow the same one
-        require(
-            referrer[msg.sender] == address(0) || referrer[msg.sender] == _referrer,
-            "Referrer is already set and cannot be changed"
-        );
+
 
         uint256 scUsdtAmount = usdtAmount;
         uint256 fundWalletAmount = 0;
@@ -109,9 +106,9 @@ contract NanoMining is Ownable, ReentrancyGuard {
         }
 
         // Transfer USDT from the buyer to the contract
-        require(usdtToken.transferFrom(msg.sender, address(this), scUsdtAmount), "USDT transfer failed (SC)");
+        usdtToken.transferFrom(msg.sender, address(this), scUsdtAmount);
         if (fundWalletAmount > 0) {
-            require(usdtToken.transferFrom(msg.sender, fundWalletAddress, fundWalletAmount), "USDT transfer failed (Fund Wallet)");
+            usdtToken.transferFrom(msg.sender, fundWalletAddress, fundWalletAmount);
         }
 
         uint256 nanoToReceive = calculateNanoAmount(usdtAmount);
@@ -125,7 +122,6 @@ contract NanoMining is Ownable, ReentrancyGuard {
                 timestamp: currentTime,
                 balanceType: BalanceType.Deposit
             }));
-
         } else {
             uint256 referralReward = (nanoToReceive * REFERRAL_PERCENTAGE) / 100;
 
@@ -222,7 +218,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 netAmount = usdtAmount - adminFee;
 
         // Transfer net USDT to user
-        require(usdtToken.transfer(msg.sender, netAmount), "Transfer failed");
+        usdtToken.transfer(msg.sender, netAmount);
 
         // Deduct the swapped amount from total harvested amount
         totalHarvestAmount[msg.sender] -= nanoAmount;

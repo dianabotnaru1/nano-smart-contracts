@@ -23,6 +23,10 @@ module.exports = {
       chainId: 56, // BSC Mainnet Chain ID
       gasPrice: 20000000000, // Gas price in wei (20 Gwei)
     },
+    local: {
+      url: 'http://localhost:7545',
+      accounts: [process.env.LOCAL_PRIVATE_KEY],
+    }
   },
   etherscan: {
     apiKey: process.env.BSCSCAN_API_KEY,
