@@ -207,7 +207,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
 
     // Swap NANO for USDT with 10% admin fee
     function swapNanoForUSDT(uint256 nanoAmount) external nonReentrant {
-        require(nanoAmount > 0, "Amount should be greater than zero");
+        require(nanoAmount > MIN_WITHDRAWAL, "Amount should be greater than minimal withdrawal");
         require(nanoAmount <= totalHarvestAmount[msg.sender], "Amount exceeds total harvested amount");
 
         // Calculate USDT equivalent (assuming 15625 NANO = 10 USDT)
