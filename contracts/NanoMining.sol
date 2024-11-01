@@ -16,6 +16,21 @@ contract NanoMining is Ownable, ReentrancyGuard {
     mapping(address => uint256) public totalHarvestAmount;
     mapping(address => address) public referrer;
 
+    enum BalanceType { Deposit, ReferralReward }
+
+    struct BalanceLog {
+        uint256 amount;
+        uint256 timestamp;
+        BalanceType balanceType;
+    }
+    mapping(address => BalanceLog[]) public balanceLogs;
+
+    struct HarvestLog {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    mapping(address => HarvestLog[]) public harvestLogs;
+
     uint256 public constant MIN_WITHDRAWAL = 15000 * 10**18; // Minimum withdrawal in NANO
     uint256 public constant REFERRAL_PERCENTAGE = 10; // 10% referral
 
@@ -78,7 +93,6 @@ contract NanoMining is Ownable, ReentrancyGuard {
     function buyNano(uint256 usdtAmount, address _referrer) external nonReentrant {
         require(usdtAmount > 0, "Amount should be greater than zero");
         require(_referrer != msg.sender, "Referrer cannot be the buyer");
-        require(_referrer != address(0), "Referrer is required");
 
         // Check if the buyer already has a referrer set and only allow the same one
         require(
@@ -101,19 +115,44 @@ contract NanoMining is Ownable, ReentrancyGuard {
         }
 
         uint256 nanoToReceive = calculateNanoAmount(usdtAmount);
-        uint256 referralReward = (nanoToReceive * REFERRAL_PERCENTAGE) / 100;
+        uint256 currentTime = block.timestamp;
 
-        // Deduct referral percentage if referrer exists and add balance to buyer
-        uint256 nanoForBuyer = nanoToReceive - referralReward;
-        balances[msg.sender] += nanoForBuyer;
+        if (_referrer == address(0)) {
+            balances[msg.sender] += nanoToReceive;
 
-        // Set referrer if it’s the first time setting it
-        if (referrer[msg.sender] == address(0)) {
-            referrer[msg.sender] = _referrer;
+            balanceLogs[msg.sender].push(BalanceLog({
+                amount: nanoToReceive,
+                timestamp: currentTime,
+                balanceType: BalanceType.Deposit
+            }));
+
+        } else {
+            uint256 referralReward = (nanoToReceive * REFERRAL_PERCENTAGE) / 100;
+
+            // Deduct referral percentage if referrer exists and add balance to buyer
+            uint256 nanoForBuyer = nanoToReceive - referralReward;
+            balances[msg.sender] += nanoForBuyer;
+
+            // Log deposit for buyer
+            balanceLogs[msg.sender].push(BalanceLog({
+                amount: nanoForBuyer,
+                timestamp: currentTime,
+                balanceType: BalanceType.Deposit
+            }));
+
+            // Set referrer if it’s the first time setting it
+            if (referrer[msg.sender] == address(0)) {
+                referrer[msg.sender] = _referrer;
+            }
+
+            // Add referral reward to referrer's balance and log it
+            balances[_referrer] += referralReward;
+            balanceLogs[_referrer].push(BalanceLog({
+                amount: referralReward,
+                timestamp: currentTime,
+                balanceType: BalanceType.ReferralReward
+            }));
         }
-
-        // Add referral reward to referrer's balance
-        balances[_referrer] += referralReward;
 
         emit NanoPurchased(msg.sender, usdtAmount, nanoToReceive);
     }
@@ -128,20 +167,46 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
 
     // Calculate total rewards for the user
-    function calculateRewards() internal pure returns (uint256) {
-        // Removed balance log processing, simply return 0 for the sake of this simplified version
-        return 0;
+    function calculateRewards(address _user, uint256 currentTime) internal view returns (uint256) {
+        uint256 totalRewards = 0;
+
+        for (uint256 i = 0; i < balanceLogs[_user].length; i++) {
+            BalanceLog memory log = balanceLogs[_user][i];
+
+            // Calculate days elapsed since each log's timestamp
+            uint256 daysElapsed = (currentTime - log.timestamp) / 1 days;
+            uint256 reward = (daysElapsed * roi * log.amount) / 100;
+
+            totalRewards += reward;
+        }
+        return totalRewards;
     }
 
     function harvest() external nonReentrant {
+        uint256 currentTime = block.timestamp;
+
         // Calculate total rewards for the user
-        uint256 totalRewards = calculateRewards();
+        uint256 totalRewards = calculateRewards(msg.sender, currentTime);
 
-        require(totalRewards > 0, "Current rewards should be greater than zero");
+        // Calculate current rewards for the user
+        uint256 currentRewards = totalRewards;
 
-        totalHarvestAmount[msg.sender] += totalRewards;
+        for (uint256 i = 0; i < harvestLogs[msg.sender].length; i++) {
+            HarvestLog memory log = harvestLogs[msg.sender][i];
 
-        emit NANOHarvested(msg.sender, totalRewards);
+            currentRewards -= log.amount;
+        }
+
+        require(currentRewards > 0, "Current rewards should be greater than zero");
+
+        harvestLogs[msg.sender].push(HarvestLog({
+            amount: currentRewards,
+            timestamp: block.timestamp
+        }));
+
+        totalHarvestAmount[msg.sender] += currentRewards;
+
+        emit NANOHarvested(msg.sender, currentRewards);
     }
 
     // Swap NANO for USDT with 10% admin fee
@@ -173,5 +238,15 @@ contract NanoMining is Ownable, ReentrancyGuard {
     // Get the total harvested NANO amount for the miner
     function getTotalHarvestedAmount(address _miner) external view returns (uint256) {
         return totalHarvestAmount[_miner];
+    }
+
+    // Get harvest logs for a miner
+    function getHarvestLogs(address _miner) external view returns (HarvestLog[] memory) {
+        return harvestLogs[_miner];
+    }
+
+    // Get balance logs for a miner
+    function getBalanceLogs(address _miner) external view returns (BalanceLog[] memory) {
+        return balanceLogs[_miner];
     }
 }
