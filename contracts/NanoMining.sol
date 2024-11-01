@@ -173,9 +173,9 @@ contract NanoMining is Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < balanceLogs[_user].length; i++) {
             BalanceLog memory log = balanceLogs[_user][i];
 
-            // Calculate days elapsed since each log's timestamp
-            uint256 daysElapsed = (currentTime - log.timestamp) / 1 days;
-            uint256 reward = (daysElapsed * roi * log.amount) / 100;
+            // Calculate seconds elapsed since each log's timestamp
+            uint256 secondsElapsed = currentTime - log.timestamp;
+            uint256 reward = (secondsElapsed * roi * log.amount) / (100 * 1 days);
 
             totalRewards += reward;
         }
