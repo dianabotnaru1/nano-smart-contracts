@@ -43,7 +43,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     event ROIUpdate(uint256 roi);
     event USDTWithdrawn(address indexed admin, address indexed to, uint256 amount);
 
-    constructor(address _usdtToken, address _nanoToken) {
+    constructor(address _usdtToken) Ownable(msg.sender) {
         usdtToken = IERC20(_usdtToken);
         roi = 5;
         fundRate = 40;
