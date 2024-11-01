@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-    const contractAddress = "0x3743EE58694c8BAFE978f4dF1e61F9d0396a2aca"; // Replace with your deployed contract address
+    const contractAddress = "0x37082adEC30886088C83f02A2537f2EA7DD31CbC"; // Replace with your deployed contract address
     const initialSupply = "1000000"; // Replace with the constructor argument used in deployment
 
     await hre.run("verify:verify", {

@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-    const initialSupply = 1000000; // Adjust as needed
+    const initialSupply = ethers.utils.parseUnits("1000000", 18); // Adjust as needed
     const USDT = await hre.ethers.getContractFactory("USDT");
     const nano = await USDT.deploy(initialSupply);
 

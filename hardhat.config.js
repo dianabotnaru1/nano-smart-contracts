@@ -17,6 +17,12 @@ module.exports = {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
       accounts: [process.env.PRIVATE_KEY],
     },
+    bsc: {
+      url: 'https://bsc-dataseed.binance.org/', // BSC Mainnet RPC URL
+      accounts: [process.env.PRIVATE_KEY],
+      chainId: 56, // BSC Mainnet Chain ID
+      gasPrice: 20000000000, // Gas price in wei (20 Gwei)
+    },
   },
   etherscan: {
     apiKey: process.env.BSCSCAN_API_KEY,
