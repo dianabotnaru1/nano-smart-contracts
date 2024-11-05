@@ -170,7 +170,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         return nanoAmount * 100 / 156250; // Adjust as per requirement
     }
 
-    // Calculate total rewards for the user
+    // Calculate current left rewards for the user
     function calculateRewards(address _user, uint256 currentTime) internal view returns (uint256) {
         uint256 totalRewards = 0;
 
@@ -179,38 +179,40 @@ contract NanoMining is Ownable, ReentrancyGuard {
 
             // Calculate seconds elapsed since each log's timestamp
             uint256 secondsElapsed = currentTime - log.timestamp;
+            if (secondsElapsed > 30 days) secondsElapsed = 30 days;
             uint256 reward = (secondsElapsed * roi * log.amount) / (100 * 1 days);
 
             totalRewards += reward;
         }
-        return totalRewards;
-    }
 
-    function harvest() external nonReentrant {
-        uint256 currentTime = block.timestamp;
-
-        // Calculate total rewards for the user
-        uint256 totalRewards = calculateRewards(msg.sender, currentTime);
-
-        // Calculate current rewards for the user
-        uint256 currentRewards = totalRewards;
-
+        uint256 totalHarvestedAmount = 0;
         for (uint256 i = 0; i < harvestLogs[msg.sender].length; i++) {
             HarvestLog memory log = harvestLogs[msg.sender][i];
 
-            currentRewards -= log.amount;
+            totalHarvestedAmount += log.amount;
         }
 
-        require(currentRewards > 0, "Current rewards should be greater than zero");
+        return totalRewards - totalHarvestedAmount;
+    }
+
+    function harvest(uint256 nanoAmount) external nonReentrant {
+        require(nanoAmount > 0, "Nano Amount to harvest should be greater than zero");
+
+        uint256 currentTime = block.timestamp;
+
+        // Calculate current left rewards for the user
+        uint256 currentRewards = calculateRewards(msg.sender, currentTime);
+
+        require(currentRewards >= nanoAmount, "Nano Amount to harvest should be less than the current left rewards");
 
         harvestLogs[msg.sender].push(HarvestLog({
-            amount: currentRewards,
+            amount: nanoAmount,
             timestamp: block.timestamp
         }));
 
-        totalHarvestAmount[msg.sender] += currentRewards;
+        totalHarvestAmount[msg.sender] += nanoAmount;
 
-        emit NANOHarvested(msg.sender, currentRewards);
+        emit NANOHarvested(msg.sender, nanoAmount);
     }
 
     // Swap NANO for USDT with 10% admin fee
@@ -221,24 +223,20 @@ contract NanoMining is Ownable, ReentrancyGuard {
         // Calculate USDT equivalent (assuming 15625 NANO = 10 USDT)
         uint256 usdtAmount = calculateUSDTAmount(nanoAmount);
 
-        // Apply 10% admin fee
-        uint256 adminFee = (usdtAmount * 10) / 100;
-        uint256 netAmount = usdtAmount - adminFee;
-
         // Transfer net USDT to user
-        usdtToken.transfer(msg.sender, netAmount);
+        usdtToken.transfer(msg.sender, usdtAmount);
 
         // Deduct the swapped amount from total harvested amount
         totalHarvestAmount[msg.sender] -= nanoAmount;
 
-        latestSwapAmount[msg.sender] = netAmount;
+        latestSwapAmount[msg.sender] = usdtAmount;
 
         swapLogs[msg.sender].push(SwapLog({
-            amount: netAmount,
+            amount: usdtAmount,
             timestamp: block.timestamp
         }));
 
-        emit Swapped(msg.sender, nanoAmount, netAmount);
+        emit Swapped(msg.sender, nanoAmount, usdtAmount);
     }
 
     function getLatestSwapAmount(address _miner) external view returns (uint256) {
