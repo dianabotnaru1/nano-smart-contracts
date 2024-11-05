@@ -171,7 +171,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
 
     // Calculate current left rewards for the user
-    function calculateRewards(address _user, uint256 currentTime) internal view returns (uint256) {
+    function calculateRewards(address _user, uint256 currentTime) public view returns (uint256) {
         uint256 totalRewards = 0;
 
         for (uint256 i = 0; i < balanceLogs[_user].length; i++) {
