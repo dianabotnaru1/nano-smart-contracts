@@ -14,6 +14,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
 
     mapping(address => uint256) public balances;
     mapping(address => uint256) public totalHarvestAmount;
+    mapping(address => uint256) public latestSwapAmount;
     mapping(address => address) public referrer;
 
     enum BalanceType { Deposit, ReferralReward }
@@ -30,6 +31,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 timestamp;
     }
     mapping(address => HarvestLog[]) public harvestLogs;
+
+    struct SwapLog {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    mapping(address => SwapLog[]) public swapLogs;
 
     uint256 public constant MIN_WITHDRAWAL = 15000 * 10**18; // Minimum withdrawal in NANO
     uint256 public constant REFERRAL_PERCENTAGE = 10; // 10% referral
@@ -114,8 +121,9 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 nanoToReceive = calculateNanoAmount(usdtAmount);
         uint256 currentTime = block.timestamp;
 
+        uint256 nanoForBuyer = nanoToReceive;
         if (_referrer == address(0)) {
-            balances[msg.sender] += nanoToReceive;
+            balances[msg.sender] += nanoForBuyer;
 
             balanceLogs[msg.sender].push(BalanceLog({
                 amount: nanoToReceive,
@@ -126,7 +134,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
             uint256 referralReward = (nanoToReceive * REFERRAL_PERCENTAGE) / 100;
 
             // Deduct referral percentage if referrer exists and add balance to buyer
-            uint256 nanoForBuyer = nanoToReceive - referralReward;
+            nanoForBuyer = nanoToReceive - referralReward;
             balances[msg.sender] += nanoForBuyer;
 
             // Log deposit for buyer
@@ -150,7 +158,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
             }));
         }
 
-        emit NanoPurchased(msg.sender, usdtAmount, nanoToReceive);
+        emit NanoPurchased(msg.sender, usdtAmount, nanoForBuyer);
     }
 
     // Calculate NANO amount based on USDT
@@ -223,7 +231,18 @@ contract NanoMining is Ownable, ReentrancyGuard {
         // Deduct the swapped amount from total harvested amount
         totalHarvestAmount[msg.sender] -= nanoAmount;
 
+        latestSwapAmount[msg.sender] = netAmount;
+
+        swapLogs[msg.sender].push(SwapLog({
+            amount: netAmount,
+            timestamp: block.timestamp
+        }));
+
         emit Swapped(msg.sender, nanoAmount, netAmount);
+    }
+
+    function getLatestSwapAmount(address _miner) external view returns (uint256) {
+        return latestSwapAmount[_miner];
     }
 
     // Get the current balance of the miner in NANO
