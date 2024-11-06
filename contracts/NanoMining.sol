@@ -97,7 +97,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
 
     // Buy NANO
-    function buyNano(uint256 usdtAmount, address _referrer) external nonReentrant return(uint256) {
+    function buyNano(uint256 usdtAmount, address _referrer) external nonReentrant returns (uint256) {
         require(usdtAmount > 0, "Amount should be greater than zero");
         require(_referrer != msg.sender, "Referrer cannot be the buyer");
 
@@ -186,7 +186,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         return totalRewards - totalHarvestedAmount;
     }
 
-    function harvest(uint256 nanoAmount) external nonReentrant return(uint256) {
+    function harvest(uint256 nanoAmount) external nonReentrant returns (uint256) {
         require(nanoAmount > 0, "Nano Amount to harvest should be greater than zero");
 
         uint256 currentTime = block.timestamp;
@@ -209,7 +209,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
 
     // Swap NANO for USDT without admin fee
-    function swapNanoForUSDT(uint256 nanoAmount) external nonReentrant return(uint256) {
+    function swapNanoForUSDT(uint256 nanoAmount) external nonReentrant returns (uint256) {
         require(nanoAmount > MIN_WITHDRAWAL, "Amount should be greater than minimal withdrawal");
         require(nanoAmount <= totalHarvestAmount[msg.sender], "Amount exceeds total harvested amount");
 
