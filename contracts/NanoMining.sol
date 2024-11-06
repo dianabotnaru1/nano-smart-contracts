@@ -38,7 +38,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
     mapping(address => SwapLog[]) public swapLogs;
 
-    uint256 public constant MIN_WITHDRAWAL = 15000 * 10**18; // Minimum withdrawal in NANO
+    uint256 public constant MIN_WITHDRAWAL = 1500 * 10**18; // Minimum withdrawal in NANO
     uint256 public constant REFERRAL_PERCENTAGE = 10; // 10% referral
 
     event NanoPurchased(address indexed buyer, uint256 usdtAmount, uint256 nanoReceived);
@@ -121,28 +121,17 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 nanoToReceive = calculateNanoAmount(usdtAmount);
         uint256 currentTime = block.timestamp;
 
-        uint256 nanoForBuyer = nanoToReceive;
-        if (_referrer == address(0)) {
-            balances[msg.sender] += nanoForBuyer;
+        balances[msg.sender] += nanoToReceive;
 
-            balanceLogs[msg.sender].push(BalanceLog({
-                amount: nanoToReceive,
-                timestamp: currentTime,
-                balanceType: BalanceType.Deposit
-            }));
-        } else {
+        balanceLogs[msg.sender].push(BalanceLog({
+            amount: nanoToReceive,
+            timestamp: currentTime,
+            balanceType: BalanceType.Deposit
+        }));
+
+        if (_referrer != address(0)) {
+
             uint256 referralReward = (nanoToReceive * REFERRAL_PERCENTAGE) / 100;
-
-            // Deduct referral percentage if referrer exists and add balance to buyer
-            nanoForBuyer = nanoToReceive - referralReward;
-            balances[msg.sender] += nanoForBuyer;
-
-            // Log deposit for buyer
-            balanceLogs[msg.sender].push(BalanceLog({
-                amount: nanoForBuyer,
-                timestamp: currentTime,
-                balanceType: BalanceType.Deposit
-            }));
 
             // Set referrer if it’s the first time setting it
             if (referrer[msg.sender] == address(0)) {
@@ -158,7 +147,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
             }));
         }
 
-        emit NanoPurchased(msg.sender, usdtAmount, nanoForBuyer);
+        emit NanoPurchased(msg.sender, usdtAmount, nanoToReceive);
     }
 
     // Calculate NANO amount based on USDT
