@@ -97,7 +97,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
 
     // Buy NANO
-    function buyNano(uint256 usdtAmount, address _referrer) external nonReentrant {
+    function buyNano(uint256 usdtAmount, address _referrer) external nonReentrant return(uint256) {
         require(usdtAmount > 0, "Amount should be greater than zero");
         require(_referrer != msg.sender, "Referrer cannot be the buyer");
 
@@ -148,6 +148,8 @@ contract NanoMining is Ownable, ReentrancyGuard {
         }
 
         emit NanoPurchased(msg.sender, usdtAmount, nanoToReceive);
+
+        return balances[msg.sender];
     }
 
     // Calculate NANO amount based on USDT
@@ -184,7 +186,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         return totalRewards - totalHarvestedAmount;
     }
 
-    function harvest(uint256 nanoAmount) external nonReentrant {
+    function harvest(uint256 nanoAmount) external nonReentrant return(uint256) {
         require(nanoAmount > 0, "Nano Amount to harvest should be greater than zero");
 
         uint256 currentTime = block.timestamp;
@@ -202,10 +204,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
         totalHarvestAmount[msg.sender] += nanoAmount;
 
         emit NANOHarvested(msg.sender, nanoAmount);
+
+        return currentRewards - nanoAmount;
     }
 
-    // Swap NANO for USDT with 10% admin fee
-    function swapNanoForUSDT(uint256 nanoAmount) external nonReentrant {
+    // Swap NANO for USDT without admin fee
+    function swapNanoForUSDT(uint256 nanoAmount) external nonReentrant return(uint256) {
         require(nanoAmount > MIN_WITHDRAWAL, "Amount should be greater than minimal withdrawal");
         require(nanoAmount <= totalHarvestAmount[msg.sender], "Amount exceeds total harvested amount");
 
@@ -226,6 +230,8 @@ contract NanoMining is Ownable, ReentrancyGuard {
         }));
 
         emit Swapped(msg.sender, nanoAmount, usdtAmount);
+
+        return totalHarvestAmount[msg.sender];
     }
 
     function getLatestSwapAmount(address _miner) external view returns (uint256) {
