@@ -9,7 +9,6 @@ contract NanoMining is Ownable, ReentrancyGuard {
     IERC20 public usdtToken; // USDT token contract
     IERC20 public nanoToken; // NANO token contract
     address public fundWalletAddress;
-    address public adminWallerAddress;
     uint256 public roi;
     uint256 public fundRate;
 
@@ -38,6 +37,13 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 timestamp;
     }
     mapping(address => SwapLog[]) public swapLogs;
+
+    struct ReferralRewardLog {
+        uint256 amount;
+        address fromRefer;
+        uint256 timestamp;
+    }
+    mapping(address => ReferralRewardLog[]) public referralRewardLogs;
 
     uint256 public constant MIN_WITHDRAWAL = 1500 * 10**18; // Minimum withdrawal in NANO
     uint256 public constant REFERRAL_PERCENTAGE = 10; // 10% referral
@@ -140,12 +146,11 @@ contract NanoMining is Ownable, ReentrancyGuard {
                 referrer[msg.sender] = _referrer;
             }
 
-            // Add referral reward to referrer's balance and log it
-            balances[_referrer] += referralReward;
-            balanceLogs[_referrer].push(BalanceLog({
+            // Add referral reward to referrer's reward logs and log it
+            referralRewardLogs[_referrer].push(ReferralRewardLog({
                 amount: referralReward,
-                timestamp: currentTime,
-                balanceType: BalanceType.ReferralReward
+                fromRefer: msg.sender,
+                timestamp: currentTime
             }));
         }
 
@@ -176,6 +181,12 @@ contract NanoMining is Ownable, ReentrancyGuard {
             uint256 reward = (secondsElapsed * roi * log.amount) / (100 * 1 days);
 
             totalRewards += reward;
+        }
+
+        for (uint256 i = 0; i < referralRewardLogs[_user].length; i++) {
+            ReferralRewardLog memory log = referralRewardLogs[_user][i];
+
+            totalRewards += log.amount;
         }
 
         uint256 totalHarvestedAmount = 0;
@@ -258,5 +269,15 @@ contract NanoMining is Ownable, ReentrancyGuard {
     // Get balance logs for a miner
     function getBalanceLogs(address _miner) external view returns (BalanceLog[] memory) {
         return balanceLogs[_miner];
+    }
+
+    // Get swap logs for a miner
+    function getSwapLogs(address _miner) external view returns (SwapLog[] memory) {
+        return swapLogs[_miner];
+    }
+
+    // Get referral reward logs for a miner
+    function getReferralRewardLogs(address _miner) external view returns (ReferralRewardLog[] memory) {
+        return referralRewardLogs[_miner];
     }
 }

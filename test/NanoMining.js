@@ -59,14 +59,12 @@ describe("NanoMining Contract", function () {
             expect(+ethers.utils.formatUnits(nanoBalance, 18)).to.equal(156250);
         })
 
-        it("Should get the correct Nano for 2 addresses if the referral address isn't zero address", async function () {
+        it("Should get the correct Nano if the referral address isn't zero address", async function () {
             await nanoMining.connect(addr1).buyNano(ethers.utils.parseUnits("100", 18), addr2.address);
 
             const nanoBalance1 = await nanoMining.getMinerBalance(addr1.address);
-            const nanoBalance2 = await nanoMining.getMinerBalance(addr2.address);
 
             expect(+ethers.utils.formatUnits(nanoBalance1, 18)).to.equal(156250);
-            expect(+ethers.utils.formatUnits(nanoBalance2, 18)).to.equal(15625);
         })
     })
 
@@ -125,6 +123,20 @@ describe("NanoMining Contract", function () {
             const totalRewards = await nanoMining.calculateRewards(addr1.address, currentTimestamp);
 
             expect(+ethers.utils.formatUnits(totalRewards, 18)).to.equal(15625 * 30);
+        })
+
+        it("should calculate the referral reward and shouldn't apply ROI", async function() {
+            await nanoMining.connect(addr1).buyNano(ethers.utils.parseUnits("200", 18), addr2.address);
+
+            await ethers.provider.send("evm_increaseTime", [86400 * 30]);
+            await ethers.provider.send("evm_mine", []);
+            const block = await ethers.provider.getBlock("latest");
+
+            const currentTimestamp = block.timestamp;
+
+            const totalRewards = await nanoMining.calculateRewards(addr2.address, currentTimestamp);
+
+            expect(+ethers.utils.formatUnits(totalRewards, 18)).to.equal(31250);
         })
 
         it("Should get the correct reward if the users invest twice", async function () {
