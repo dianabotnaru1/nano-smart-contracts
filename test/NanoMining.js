@@ -8,9 +8,11 @@ describe("NanoMining Contract", function () {
     let owner;
     let addr1;
     let addr2;
+    let addr3;
+    let adminWallet;
 
     beforeEach(async function () {
-        [owner, addr1, addr2] = await ethers.getSigners();
+        [owner, addr1, addr2, addr3, adminWallet] = await ethers.getSigners();
 
         // Deploy USDT mock token
         const MockToken = await ethers.getContractFactory("NanoToken");
@@ -21,7 +23,7 @@ describe("NanoMining Contract", function () {
 
         // Deploy NanoMining contract
         NanoMining = await ethers.getContractFactory("NanoMining");
-        nanoMining = await NanoMining.deploy(USDT.address);
+        nanoMining = await NanoMining.deploy(USDT.address, adminWallet.address);
         await nanoMining.deployed();
 
         console.log("NanoMining deployed to:", nanoMining.address);
@@ -32,12 +34,23 @@ describe("NanoMining Contract", function () {
     });
 
     describe("Deployment", function () {
-        it("Should set the correct USDT token address", async function () {
+        it("Should set the correct USDT token address and fund wallet address", async function () {
             expect(await nanoMining.usdtToken()).to.equal(USDT.address);
+            expect(await nanoMining.fundWalletAddress()).to.equal(adminWallet.address);
         });
     });
 
     describe("buyNano function", function() {
+        it("should deposit the correct USDT", async function () {
+            await nanoMining.connect(addr1).buyNano(ethers.utils.parseUnits("100", 18), '0x0000000000000000000000000000000000000000');
+
+            const scBalance = await USDT.balanceOf(nanoMining.address);
+            const fundWalletBalance = await USDT.balanceOf(adminWallet.address);
+
+            expect(+ethers.utils.formatUnits(scBalance, 18)).to.equal(80);
+            expect(+ethers.utils.formatUnits(fundWalletBalance, 18)).to.equal(20);
+        })
+
         it("Should get the correct Nano if the referral address is zero address", async function () {
             await nanoMining.connect(addr1).buyNano(ethers.utils.parseUnits("100", 18), '0x0000000000000000000000000000000000000000');
 
@@ -73,11 +86,13 @@ describe("NanoMining Contract", function () {
             await nanoMining.connect(addr1).buyNano(ethers.utils.parseUnits("1000", 18), addr2.address);
             await ethers.provider.send("evm_increaseTime", [86400]);
             await nanoMining.connect(addr1).harvest(ethers.utils.parseUnits("15625", 18));
-            await nanoMining.connect(addr1).swapNanoForUSDT(ethers.utils.parseUnits("15625", 18));
+            await nanoMining.connect(addr1).swapNanoForUSDT(ethers.utils.parseUnits("15625", 18), addr3.address);
 
             const usdtAmount = await nanoMining.getLatestSwapAmount(addr1.address);
+            const swappedAmount = await USDT.balanceOf(addr3.address);
 
             expect(+ethers.utils.formatUnits(usdtAmount, 18)).to.equal(10);
+            expect(+ethers.utils.formatUnits(swappedAmount, 18)).to.equal(10);
         })
     })
 

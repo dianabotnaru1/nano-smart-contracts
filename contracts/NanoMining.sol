@@ -9,6 +9,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     IERC20 public usdtToken; // USDT token contract
     IERC20 public nanoToken; // NANO token contract
     address public fundWalletAddress;
+    address public adminWallerAddress;
     uint256 public roi;
     uint256 public fundRate;
 
@@ -43,17 +44,18 @@ contract NanoMining is Ownable, ReentrancyGuard {
 
     event NanoPurchased(address indexed buyer, uint256 usdtAmount, uint256 nanoReceived);
     event NANOHarvested(address indexed user, uint256 amount);
-    event Swapped(address indexed user, uint256 nanoAmount, uint256 usdtReceived);
+    event Swapped(address indexed user, address indexed withdrawalAddress, uint256 nanoAmount, uint256 usdtReceived);
     event NanoTokenUpdated(address indexed newTokenAddress);
     event FundWalletUpdate(address indexed fundWalletAddress);
     event FundWalletRateUpdate(uint256 fundRate);
     event ROIUpdate(uint256 roi);
     event USDTWithdrawn(address indexed admin, address indexed to, uint256 amount);
 
-    constructor(address _usdtToken) Ownable(msg.sender) {
+    constructor(address _usdtToken, address _fundWalletAddress) Ownable(msg.sender) {
         usdtToken = IERC20(_usdtToken);
+        fundWalletAddress = _fundWalletAddress;
         roi = 5;
-        fundRate = 40;
+        fundRate = 20;
     }
 
     // Method to set the NANO token address (only owner can call this)
@@ -209,7 +211,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     }
 
     // Swap NANO for USDT without admin fee
-    function swapNanoForUSDT(uint256 nanoAmount) external nonReentrant returns (uint256) {
+    function swapNanoForUSDT(uint256 nanoAmount, address withdrawalAddress) external nonReentrant returns (uint256) {
         require(nanoAmount > MIN_WITHDRAWAL, "Amount should be greater than minimal withdrawal");
         require(nanoAmount <= totalHarvestAmount[msg.sender], "Amount exceeds total harvested amount");
 
@@ -217,7 +219,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
         uint256 usdtAmount = calculateUSDTAmount(nanoAmount);
 
         // Transfer net USDT to user
-        usdtToken.transfer(msg.sender, usdtAmount);
+        usdtToken.transfer(withdrawalAddress, usdtAmount);
 
         // Deduct the swapped amount from total harvested amount
         totalHarvestAmount[msg.sender] -= nanoAmount;
@@ -229,7 +231,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
             timestamp: block.timestamp
         }));
 
-        emit Swapped(msg.sender, nanoAmount, usdtAmount);
+        emit Swapped(msg.sender, withdrawalAddress, nanoAmount, usdtAmount);
 
         return totalHarvestAmount[msg.sender];
     }
