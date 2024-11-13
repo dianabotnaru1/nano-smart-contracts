@@ -173,6 +173,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
                 fromRefer: msg.sender,
                 timestamp: currentTime
             }));
+            totalHarvestAmount[_referrer] += referralReward;
         }
 
         emit NanoPurchased(msg.sender, usdtAmount, nanoToReceive);
@@ -204,11 +205,6 @@ contract NanoMining is Ownable, ReentrancyGuard {
             totalRewards += reward;
         }
 
-        for (uint256 i = 0; i < referralRewardLogs[_user].length; i++) {
-            ReferralRewardLog memory log = referralRewardLogs[_user][i];
-
-            totalRewards += log.amount;
-        }
 
         uint256 totalHarvestedAmount = 0;
         for (uint256 i = 0; i < harvestLogs[msg.sender].length; i++) {

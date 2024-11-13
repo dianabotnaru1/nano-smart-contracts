@@ -3,8 +3,10 @@ const hre = require("hardhat");
 async function main() {
     let usdtTokenAddress;
     if (hre.network.name === 'bsc') {
+        console.log('deploying into mainnet')
         usdtTokenAddress = "0x55d398326f99059fF775485246999027B3197955";
     } else if (hre.network.name === 'binanceTestnet') {
+        console.log('deploying into testnet')
         usdtTokenAddress = "0x37082adEC30886088C83f02A2537f2EA7DD31CbC";
     } else {
         console.log(`Deploying to ${hre.network.name}`);
