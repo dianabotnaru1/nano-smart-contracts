@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-    const usdtTokenAddress = "0x37082adEC30886088C83f02A2537f2EA7DD31CbC";
+    const usdtTokenAddress = "0x55d398326f99059fF775485246999027B3197955";
     const adminWalletAddress = "0xe69Ae7eEd3221E80D792a26d65888b2343F19CF1";
     const NanoMining = await hre.ethers.getContractFactory("NanoMining");
 

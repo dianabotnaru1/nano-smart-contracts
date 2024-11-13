@@ -79,6 +79,19 @@ describe("NanoMining Contract", function () {
         })
     })
 
+    describe("mining function", function() {
+        it("Should reward the correct Nano", async function () {
+            await nanoMining.connect(addr1).buyNano(ethers.utils.parseUnits("1000", 18), addr2.address);
+            await ethers.provider.send("evm_increaseTime", [86400]);
+            await nanoMining.connect(addr1).harvest(ethers.utils.parseUnits("15625", 18));
+            await nanoMining.connect(addr1).mining(ethers.utils.parseUnits("1000", 18));
+
+            const nanoBalance = await nanoMining.getMinerBalance(addr1.address);
+
+            expect(+ethers.utils.formatUnits(nanoBalance, 18)).to.equal(1563500);
+        })
+    })
+
     describe("swapNanoForUSDT function", function() {
         it("Should swap to the correct USDT", async function () {
             await nanoMining.connect(addr1).buyNano(ethers.utils.parseUnits("1000", 18), addr2.address);

@@ -17,7 +17,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     mapping(address => uint256) public latestSwapAmount;
     mapping(address => address) public referrer;
 
-    enum BalanceType { Deposit, ReferralReward }
+    enum BalanceType { Deposit, Mining }
 
     struct BalanceLog {
         uint256 amount;
@@ -56,6 +56,7 @@ contract NanoMining is Ownable, ReentrancyGuard {
     event FundWalletRateUpdate(uint256 fundRate);
     event ROIUpdate(uint256 roi);
     event USDTWithdrawn(address indexed admin, address indexed to, uint256 amount);
+    event Mining(address indexed user, uint256 amount);
 
     constructor(address _usdtToken, address _fundWalletAddress) Ownable(msg.sender) {
         usdtToken = IERC20(_usdtToken);
@@ -102,6 +103,26 @@ contract NanoMining is Ownable, ReentrancyGuard {
         usdtToken.transfer(to, amount);
 
         emit USDTWithdrawn(msg.sender, to, amount); // Emit event for logging
+    }
+
+    function mining(uint256 amount) external nonReentrant returns (uint256) {
+        require(amount > 0, "Amount should be greater than zero");
+        require(amount <= totalHarvestAmount[msg.sender], "Amount exceeds total harvested amount");
+
+        totalHarvestAmount[msg.sender] -= amount;
+        balances[msg.sender] += amount;
+
+        uint256 currentTime = block.timestamp;
+
+        balanceLogs[msg.sender].push(BalanceLog({
+            amount: amount,
+            timestamp: currentTime,
+            balanceType: BalanceType.Mining
+        }));
+
+        emit Mining(msg.sender, amount);
+
+        return totalHarvestAmount[msg.sender];
     }
 
     // Buy NANO
